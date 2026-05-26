@@ -29,6 +29,7 @@ export default function Home() {
     resetGame,
     togglePause,
     currentSection,
+    nearShipwreck,
   } = useGameStore();
 
   const [isLocked, setIsLocked] = useState(false);
@@ -323,6 +324,19 @@ export default function Home() {
             >
               <RotateCcw className="w-5 h-5 group-hover:rotate-45 transition-transform" /> JOGAR NOVAMENTE
             </button>
+          </div>
+        </div>
+      )}
+      {/* 7. HISTORIC SHIPWRECK BANNER TRIGGER */}
+      {isPlaying && !isGameOver && nearShipwreck && (
+        <div className="absolute top-36 left-1/2 -translate-x-1/2 z-30 pointer-events-none w-full max-w-xl px-4">
+          <div className="backdrop-blur-xl bg-amber-950/80 border border-amber-500/50 rounded-2xl p-5 shadow-[0_0_20px_rgba(245,158,11,0.25)] text-center">
+            <div className="text-[10px] text-amber-400 font-bold font-orbitron tracking-[0.2em] mb-1.5 flex justify-center items-center gap-1.5">
+              <Award className="w-3.5 h-3.5 text-amber-400" /> DESCOBERTA HISTÓRICA: VAPOR HARLINGEN
+            </div>
+            <p className="text-xs text-amber-100 leading-relaxed font-sans font-medium">
+              Você está nadando pelos restos do Vapor Harlingen! Este navio cargueiro alemão afundou em 1906 após colidir com a Ilha dos Porcos. Por estar em águas muito rasas (menos de 8 metros), ele se desfez com o tempo. Hoje, suas caldeiras e chapas de ferro estão cobertas por corais-cérebro e servem de refúgio perfeito para tartarugas e filhotes de baleia descansarem das correntes do mar aberto!
+            </p>
           </div>
         </div>
       )}

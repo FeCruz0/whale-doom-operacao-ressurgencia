@@ -96,6 +96,131 @@ export function RouteScenario() {
       </mesh>
 
       {/* ========================================================== */}
+      {/* HISTORIC SHIPWRECK: 'VAPOR HARLINGEN' (Z: -1780, Y: ~301)  */}
+      {/* ========================================================== */}
+      {/* Dismantled cargo steamer wreckage elements on golden sand */}
+      
+      {/* Boiler 1: Left Boiler (Z = -1765, Y = 303, tilted) */}
+      <group position={[-15, 303, -1765]} rotation={[0.4, 0.5, -0.6]}>
+        {/* Main Steam Cylinder */}
+        <mesh castShadow receiveShadow>
+          <cylinderGeometry args={[5, 5, 14, 12]} />
+          <meshStandardMaterial color="#7c2d12" roughness={0.85} metalness={0.7} /> {/* Rust Brown */}
+        </mesh>
+        {/* Boiler Cap/Details */}
+        <mesh position={[0, 7, 0]} castShadow>
+          <cylinderGeometry args={[4.2, 4.2, 1.5, 12]} />
+          <meshStandardMaterial color="#9a3412" roughness={0.9} metalness={0.6} />
+        </mesh>
+        {/* Attached corals */}
+        <mesh position={[-3, 4, 3]}>
+          <sphereGeometry args={[1.5, 6, 6]} />
+          <meshStandardMaterial color="#db2777" emissive="#db2777" emissiveIntensity={0.6} /> {/* Pink brain coral */}
+        </mesh>
+      </group>
+
+      {/* Boiler 2: Right Boiler (Z = -1795, Y = 299, lying down flat) */}
+      <group position={[15, 299, -1795]} rotation={[1.4, -0.3, 0.8]}>
+        <mesh castShadow receiveShadow>
+          <cylinderGeometry args={[4.8, 4.8, 12, 12]} />
+          <meshStandardMaterial color="#7c2d12" roughness={0.9} metalness={0.75} />
+        </mesh>
+        {/* Boiler Cap */}
+        <mesh position={[0, -6, 0]} castShadow>
+          <cylinderGeometry args={[4.0, 4.0, 1.5, 12]} />
+          <meshStandardMaterial color="#451a03" roughness={0.95} />
+        </mesh>
+        {/* Attached green coral */}
+        <mesh position={[3, -2, -3]}>
+          <dodecahedronGeometry args={[1.3, 0]} />
+          <meshStandardMaterial color="#059669" emissive="#059669" emissiveIntensity={0.6} />
+        </mesh>
+      </group>
+
+      {/* Hull Rib Clump / Cavernas (Z = -1780, X = 0, Y = 301) */}
+      <group position={[0, 301, -1780]}>
+        {/* Rib Frame Arch 1 */}
+        <mesh position={[-6, 4, 2]} rotation={[0.2, 0.1, 0.35]} castShadow>
+          <boxGeometry args={[1.5, 18, 2]} />
+          <meshStandardMaterial color="#4b5563" roughness={0.8} metalness={0.8} /> {/* Rusted steel grey */}
+        </mesh>
+        {/* Rib Frame Arch 2 */}
+        <mesh position={[6, 3, -3]} rotation={[-0.1, -0.2, -0.3]} castShadow>
+          <boxGeometry args={[1.5, 16, 2]} />
+          <meshStandardMaterial color="#4b5563" roughness={0.8} metalness={0.8} />
+        </mesh>
+        {/* Rib Frame Arch 3 (broken arch top) */}
+        <mesh position={[0, 9, -1]} rotation={[0, 0, 1.4]} castShadow>
+          <boxGeometry args={[1.2, 12, 1.8]} />
+          <meshStandardMaterial color="#374151" roughness={0.85} metalness={0.75} />
+        </mesh>
+
+        {/* Scattered Cargo Crates and plates within the clump */}
+        <mesh position={[-2, -3, -5]} rotation={[0.4, 0.8, 0.1]} castShadow>
+          <boxGeometry args={[6, 5, 6]} />
+          <meshStandardMaterial color="#78350f" roughness={0.95} /> {/* Rotting wooden crate */}
+        </mesh>
+        <mesh position={[4, -4, 4]} rotation={[-0.5, 0.2, -0.3]} castShadow>
+          <boxGeometry args={[5, 4, 5]} />
+          <meshStandardMaterial color="#78350f" roughness={0.95} />
+        </mesh>
+
+        {/* Orange Coral */}
+        <mesh position={[0, -2, 6]}>
+          <torusGeometry args={[2.5, 0.9, 8, 12]} />
+          <meshStandardMaterial color="#ea580c" emissive="#ea580c" emissiveIntensity={0.6} />
+        </mesh>
+      </group>
+
+      {/* Scattered plates & debris on the surrounding sand */}
+      <mesh position={[-25, 298, -1770]} rotation={[0.4, 0.2, 0.9]} castShadow>
+        <boxGeometry args={[10, 0.4, 12]} />
+        <meshStandardMaterial color="#7c2d12" roughness={0.9} metalness={0.8} />
+      </mesh>
+      <mesh position={[24, 296, -1790]} rotation={[-0.5, 0.8, 0.1]} castShadow>
+        <boxGeometry args={[8, 0.5, 10]} />
+        <meshStandardMaterial color="#9a3412" roughness={0.95} metalness={0.7} />
+      </mesh>
+      <mesh position={[-10, 299, -1805]} rotation={[0.9, -0.4, 0.3]} castShadow>
+        <boxGeometry args={[7, 0.3, 8]} />
+        <meshStandardMaterial color="#7c2d12" roughness={0.9} metalness={0.8} />
+      </mesh>
+
+      {/* School of tiny bioluminescent cyan fish hovering over the shipwreck */}
+      <group position={[0, 318, -1780]}>
+        {/* Fish 1 */}
+        <mesh position={[-5, 2, 4]} rotation={[0.1, 0.4, 0]}>
+          <boxGeometry args={[0.3, 0.2, 0.8]} />
+          <meshBasicMaterial color="#22d3ee" />
+        </mesh>
+        {/* Fish 2 */}
+        <mesh position={[4, -1, 1]} rotation={[-0.2, -0.2, 0.1]}>
+          <boxGeometry args={[0.3, 0.2, 0.8]} />
+          <meshBasicMaterial color="#22d3ee" />
+        </mesh>
+        {/* Fish 3 */}
+        <mesh position={[-2, 5, -3]} rotation={[0.3, 0.1, -0.2]}>
+          <boxGeometry args={[0.3, 0.2, 0.8]} />
+          <meshBasicMaterial color="#22d3ee" />
+        </mesh>
+        {/* Fish 4 */}
+        <mesh position={[2, 3, 5]} rotation={[0.0, 0.3, 0]}>
+          <boxGeometry args={[0.25, 0.15, 0.7]} />
+          <meshBasicMaterial color="#38bdf8" />
+        </mesh>
+        {/* Fish 5 */}
+        <mesh position={[-3, -2, -5]} rotation={[-0.1, -0.4, 0]}>
+          <boxGeometry args={[0.25, 0.15, 0.7]} />
+          <meshBasicMaterial color="#38bdf8" />
+        </mesh>
+        {/* Fish 6 */}
+        <mesh position={[6, 4, -2]} rotation={[0.2, 0.0, 0.2]}>
+          <boxGeometry args={[0.3, 0.2, 0.8]} />
+          <meshBasicMaterial color="#22d3ee" />
+        </mesh>
+      </group>
+
+      {/* ========================================================== */}
       {/* SECTION 3: ESTREITO DO BOQUEIRÃO (Z: -1600 to -1000)      */}
       {/* ========================================================== */}
       {/* Narrow canyon walls segments flanking closely. Left/Right X = 32 */}

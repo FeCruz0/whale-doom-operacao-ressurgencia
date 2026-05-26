@@ -42,6 +42,7 @@ interface GameState {
   lastShootTime: number;
   currentSection: number;
   sectionNotification: { title: string; desc: string; id: number } | null;
+  nearShipwreck: boolean;
   
   startGame: () => void;
   resetGame: () => void;
@@ -77,7 +78,7 @@ export const useGameStore = create<GameState>((set, get) => {
         // Pick a random Z in the section
         const z = dist.zMin + Math.random() * (dist.zMax - dist.zMin);
         
-        // Calculate sloped baseline Y: Y starting around -35 and rising up to 405
+        // Calculate sloped baseline Y
         const slopeY = -35 + (-z * 0.22);
         const y = slopeY + dist.yMinOffset + Math.random() * (dist.yMaxOffset - dist.yMinOffset);
 
@@ -111,6 +112,7 @@ export const useGameStore = create<GameState>((set, get) => {
     lastShootTime: 0,
     currentSection: 1,
     sectionNotification: null,
+    nearShipwreck: false,
 
     startGame: () => {
       set({
@@ -130,6 +132,7 @@ export const useGameStore = create<GameState>((set, get) => {
           title: SECTIONS[0].name,
           desc: SECTIONS[0].desc,
         },
+        nearShipwreck: false,
       });
     },
 
@@ -146,6 +149,7 @@ export const useGameStore = create<GameState>((set, get) => {
         projectiles: [],
         currentSection: 1,
         sectionNotification: null,
+        nearShipwreck: false,
       });
     },
 
@@ -200,7 +204,6 @@ export const useGameStore = create<GameState>((set, get) => {
       let matchedSec = SECTIONS[0];
       for (let i = SECTIONS.length - 1; i >= 0; i--) {
         if (z <= SECTIONS[i].threshold) {
-          // Z moves in negative direction
           matchedSec = SECTIONS[i];
           break;
         }
@@ -216,6 +219,12 @@ export const useGameStore = create<GameState>((set, get) => {
             desc: matchedSec.desc
           }
         });
+      }
+
+      // Check shipwreck proximity: Vapor Harlingen at Z=-1780 (Z range [-1825, -1735])
+      const nearWreck = z <= -1735 && z >= -1825;
+      if (nearWreck !== get().nearShipwreck) {
+        set({ nearShipwreck: nearWreck });
       }
 
       // Win condition: Player reached the very end of the final section (Z <= -1980)
