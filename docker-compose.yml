@@ -1,0 +1,22 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whale-doom-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Bind mount the current working directory to get instant code changes
+      - .:/app
+      # Anonymous volume for node_modules to avoid host files overriding container packages
+      - /app/node_modules
+      # Anonymous volume for the dev build cache to avoid collision with host builds
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      # Force Next.js to use polling file watchers for solid hot-reload in WSL/Windows hosts
+      - WATCHPACK_POLLING=true
+    stdin_open: true
+    tty: true
