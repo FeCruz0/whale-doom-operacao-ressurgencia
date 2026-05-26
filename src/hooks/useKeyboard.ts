@@ -5,7 +5,8 @@ export interface KeyboardControls {
   backward: boolean;
   left: boolean;
   right: boolean;
-  boost: boolean;
+  up: boolean;
+  down: boolean;
 }
 
 export function useKeyboard() {
@@ -14,7 +15,8 @@ export function useKeyboard() {
     backward: false,
     left: false,
     right: false,
-    boost: false,
+    up: false,
+    down: false,
   });
 
   useEffect(() => {
@@ -37,7 +39,10 @@ export function useKeyboard() {
           setMovement((prev) => ({ ...prev, right: true }));
           break;
         case " ":
-          setMovement((prev) => ({ ...prev, boost: true }));
+          setMovement((prev) => ({ ...prev, up: true }));
+          break;
+        case "shift":
+          setMovement((prev) => ({ ...prev, down: true }));
           break;
       }
     };
@@ -61,7 +66,10 @@ export function useKeyboard() {
           setMovement((prev) => ({ ...prev, right: false }));
           break;
         case " ":
-          setMovement((prev) => ({ ...prev, boost: false }));
+          setMovement((prev) => ({ ...prev, up: false }));
+          break;
+        case "shift":
+          setMovement((prev) => ({ ...prev, down: false }));
           break;
       }
     };

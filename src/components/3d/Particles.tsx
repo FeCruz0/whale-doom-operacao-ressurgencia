@@ -5,47 +5,40 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useGameStore } from "@/store/useGameStore";
 
-export function Particles({ count = 800 }: { count?: number }) {
+export function Particles({ count = 400 }: { count?: number }) {
   const pointsRef = useRef<THREE.Points>(null);
-  const isPlaying = useGameStore((state) => state.isPlaying);
   const isPaused = useGameStore((state) => state.isPaused);
 
-  // Generate random positions for the particles
-  const [positions, speeds] = useMemo(() => {
+  // Generate random static positions and drift speeds for water bubbles / plankton
+  const [positions, offsets] = useMemo(() => {
     const pos = new Float32Array(count * 3);
-    const spd = new Float32Array(count);
+    const offs = new Float32Array(count);
     for (let i = 0; i < count; i++) {
-      // Spread particles in a box around the tunnel
-      pos[i * 3] = (Math.random() - 0.5) * 150; // X
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 150; // Y
-      pos[i * 3 + 2] = -Math.random() * 500; // Z (spread far ahead)
+      pos[i * 3] = (Math.random() - 0.5) * 160; // X
+      pos[i * 3 + 1] = (Math.random() - 0.5) * 100; // Y
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 240 - 50; // Z
       
-      spd[i] = 10 + Math.random() * 30; // Random speed factor
+      offs[i] = Math.random() * Math.PI * 2; // Random sin phase offset
     }
-    return [pos, spd];
+    return [pos, offs];
   }, [count]);
 
-  useFrame((state, delta) => {
-    if (!pointsRef.current) return;
-    
-    // Only move particles forward if the game is playing and not paused
-    const currentSpeed = isPlaying && !isPaused ? 40 : 5;
+  useFrame((state) => {
+    if (!pointsRef.current || isPaused) return;
     
     const positionsAttr = pointsRef.current.geometry.attributes.position;
     const array = positionsAttr.array as Float32Array;
+    const time = state.clock.getElapsedTime();
 
     for (let i = 0; i < count; i++) {
+      const idxX = i * 3;
+      const idxY = i * 3 + 1;
       const idxZ = i * 3 + 2;
-      // Move particle towards the screen (positive Z direction)
-      array[idxZ] += currentSpeed * delta * (speeds[i] / 15);
 
-      // If the particle passes behind the camera, reset it far back
-      if (array[idxZ] > 30) {
-        array[idxZ] = -500;
-        // Also randomize X and Y slightly to vary the tunnel
-        array[i * 3] = (Math.random() - 0.5) * 150;
-        array[i * 3 + 1] = (Math.random() - 0.5) * 150;
-      }
+      // Drift slightly in a sinuous current wave
+      array[idxY] += Math.sin(time * 0.5 + offsets[i]) * 0.015;
+      array[idxX] += Math.cos(time * 0.3 + offsets[i]) * 0.01;
+      array[idxZ] += Math.sin(time * 0.2 + offsets[i]) * 0.01;
     }
 
     positionsAttr.needsUpdate = true;
@@ -60,11 +53,11 @@ export function Particles({ count = 800 }: { count?: number }) {
         />
       </bufferGeometry>
       <pointsMaterial
-        color="#06b6d4" // Cyberpunk Cyan
-        size={0.6}
+        color="#22d3ee" // Cyberpunk Cyan
+        size={0.4}
         sizeAttenuation={true}
         transparent={true}
-        opacity={0.8}
+        opacity={0.6}
         depthWrite={false}
         blending={THREE.AdditiveBlending}
       />

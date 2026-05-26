@@ -4,47 +4,56 @@ import { Stars } from "@react-three/drei";
 import { Particles } from "./Particles";
 import { Player } from "./Player";
 import { FloatingObjects } from "./FloatingObjects";
+import { Projectiles } from "./Projectiles";
+import { FPSControls } from "./FPSControls";
 
 export function GameScene() {
   return (
     <>
-      {/* Dark space/deep-sea background color */}
-      <color attach="background" args={["#030712"]} />
+      {/* Dark deep-sea ocean backdrop */}
+      <color attach="background" args={["#020617"]} />
 
-      {/* Fog to hide pop-in of obstacles and rings beautifully */}
-      <fog attach="fog" args={["#030712", 100, 320]} />
+      {/* Underwater depth fog */}
+      <fog attach="fog" args={["#020617", 10, 160]} />
 
-      {/* Atmospheric lighting */}
-      <ambientLight intensity={0.2} color="#0e7490" /> {/* cyan/blue ambience */}
+      {/* Atmospheric deep sea lighting */}
+      <ambientLight intensity={0.4} color="#0891b2" /> {/* cyan water light */}
       
-      {/* Main directional light representing a distant star or neon gate glow */}
+      {/* Dynamic sunlight rays piercing from water surface */}
       <directionalLight
-        position={[10, 20, 20]}
-        intensity={1.2}
+        position={[20, 100, -10]}
+        intensity={1.5}
         color="#a5f3fc"
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1028, 1028]}
       />
       
-      {/* Subtle purple point light for color complexity */}
-      <pointLight position={[-20, 10, -50]} intensity={3} color="#a855f7" />
+      {/* Bioluminescent deep water point lights */}
+      <pointLight position={[0, -20, -50]} intensity={4} color="#3b82f6" />
+      <pointLight position={[-40, 20, -100]} intensity={3} color="#a855f7" />
 
-      {/* Background Starfield (Drei's highly optimized component) */}
+      {/* Starfield treated as bioluminescent deep-sea plankton */}
       <Stars
-        radius={150}
-        depth={60}
-        count={2500}
-        factor={7}
-        saturation={0.5}
+        radius={100}
+        depth={50}
+        count={1500}
+        factor={6}
+        saturation={0.8}
         fade
-        speed={1.5}
+        speed={1.0}
       />
 
-      {/* Forward Speed Particles (bubbles/cosmic dust) */}
-      <Particles count={600} />
+      {/* Floating plankton/bubbles particles drifting slowly */}
+      <Particles count={400} />
 
-      {/* Dynamic 3D Entities */}
+      {/* First Person Controls */}
+      <FPSControls />
+
+      {/* First Person Weapon HUD mesh */}
       <Player />
+
+      {/* Projectiles & static demons list */}
+      <Projectiles />
       <FloatingObjects />
     </>
   );
