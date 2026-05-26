@@ -22,14 +22,31 @@ export default function Home() {
     lives,
     isPlaying,
     isGameOver,
+    isGameWon,
     isPaused,
     trash,
     startGame,
     resetGame,
     togglePause,
+    currentSection,
   } = useGameStore();
 
   const [isLocked, setIsLocked] = useState(false);
+  
+  const sectionNotification = useGameStore((state) => state.sectionNotification);
+  const [localNotification, setLocalNotification] = useState<{ title: string; desc: string; id: number } | null>(null);
+  const [showNotification, setShowNotification] = useState(false);
+
+  useEffect(() => {
+    if (sectionNotification) {
+      setLocalNotification(sectionNotification);
+      setShowNotification(true);
+      const timer = setTimeout(() => {
+        setShowNotification(false);
+      }, 5500);
+      return () => clearTimeout(timer);
+    }
+  }, [sectionNotification]);
 
   // Sync state checking if PointerLock is active
   useEffect(() => {
@@ -76,7 +93,7 @@ export default function Home() {
 
       {/* 2. POINTER LOCK INSTRUCTION OVERLAY (Visible when playing but mouse not locked) */}
       {isPlaying && !isGameOver && !isLocked && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-sm bg-slate-950/40 z-20 transition-all duration-300">
+        <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-sm bg-slate-950/40 z-20 transition-all duration-300 pointer-events-none">
           <div className="backdrop-blur-xl bg-slate-900/80 border border-cyan-500/40 rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center">
             <Eye className="text-cyan-400 w-12 h-12 mx-auto mb-4 animate-pulse" />
             <h3 className="text-xl font-bold font-orbitron text-white mb-2">TELA DESCONECTADA</h3>
@@ -93,6 +110,14 @@ export default function Home() {
       {/* 3. FIRST PERSON HUD DASHBOARD (Doom-style, bottom layout) */}
       {isPlaying && !isGameOver && (
         <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col items-center gap-4 z-10 pointer-events-none">
+          {/* Section Indicator Badge */}
+          <div className="backdrop-blur-md bg-slate-900/60 border border-slate-700/30 rounded-full px-4 py-1.5 text-[10px] text-cyan-300 font-bold font-orbitron tracking-widest uppercase pointer-events-auto">
+            ROTA: {currentSection} / 4 — {currentSection === 1 && "Mar Aberto"}
+            {currentSection === 2 && "Paredões do Pontal"}
+            {currentSection === 3 && "Estreito do Boqueirão"}
+            {currentSection === 4 && "Águas Rasas de Arraial"}
+          </div>
+
           {/* Main Bottom Glass HUD */}
           <div className="backdrop-blur-md bg-slate-900/70 border border-slate-700/40 rounded-2xl p-4 w-full max-w-4xl shadow-2xl flex justify-between items-center pointer-events-auto select-none">
             {/* HUD segment: ESCUDO DO CASCO */}
@@ -179,8 +204,8 @@ export default function Home() {
             </p>
 
             <p className="text-slate-300 text-sm leading-relaxed mb-8 text-center max-w-md mx-auto">
-              Assuma a visão dos olhos da embarcação **Whale** e nade livremente em 3D.
-              Seu canhão de bolhas pressurizadas é a única arma contra os demônios de poluição que infestam a fenda submarina.
+              Assuma o controle da baleia **Whale** e suba das profundezas oceânicas em direção à superfície.
+              Seu canhão de bolhas de alta pressão é a única defesa contra os detritos e demônios de poluição que bloqueiam seu caminho.
             </p>
 
             {/* FPV Controls Guidelines */}
@@ -241,6 +266,62 @@ export default function Home() {
               className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold font-orbitron rounded-xl py-4 shadow-xl shadow-red-500/20 transition-all duration-300 hover:scale-102 cursor-pointer group"
             >
               <RotateCcw className="w-5 h-5 group-hover:rotate-45 transition-transform" /> RECONECTAR EQUIPAMENTO
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. SECTION TRANSITION BANNER NOTIFICATION */}
+      {showNotification && localNotification && (
+        <div
+          className="absolute top-10 left-1/2 -translate-x-1/2 z-30 pointer-events-none w-full max-w-lg px-4"
+          style={{
+            transition: "all 0.5s ease-in-out",
+            opacity: showNotification ? 1 : 0,
+            transform: `translate(-50%, ${showNotification ? "0px" : "-20px"})`,
+          }}
+        >
+          <div className="backdrop-blur-xl bg-slate-900/90 border-2 border-cyan-500/60 rounded-2xl p-5 shadow-[0_0_25px_rgba(6,182,212,0.3)] text-center">
+            <div className="text-[10px] text-cyan-400 font-bold font-orbitron tracking-[0.2em] mb-1">
+              ENTRANDO NA SEÇÃO {localNotification.id} / 4
+            </div>
+            <h2 className="text-xl font-black font-orbitron text-white tracking-wide uppercase mb-1">
+              {localNotification.title}
+            </h2>
+            <p className="text-xs text-slate-300 leading-relaxed font-sans">
+              {localNotification.desc}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 6. GAME VICTORY SCREEN OVERLAY */}
+      {isGameWon && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center backdrop-blur-md bg-slate-950/85 z-20 p-6">
+          <div className="backdrop-blur-xl bg-slate-900/80 border border-emerald-500/40 rounded-3xl p-8 md:p-12 max-w-md w-full shadow-2xl text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 mb-4 animate-bounce">
+              <Award className="w-8 h-8" />
+            </div>
+
+            <h2 className="text-4xl font-extrabold font-orbitron text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 tracking-wider mb-2">
+              OPERAÇÃO CONCLUÍDA
+            </h2>
+            <p className="text-slate-400 text-sm mb-6">
+              Você despoluiu a rota e navegou até as águas limpas de Arraial do Cabo!
+            </p>
+
+            <div className="bg-slate-950/95 border border-slate-800 rounded-2xl p-5 mb-8 flex flex-col items-center gap-2">
+              <div>
+                <p className="text-xs text-slate-500 font-semibold font-orbitron">PONTUAÇÃO FINAL</p>
+                <p className="text-3xl font-black font-orbitron text-cyan-400 mt-1">{score}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={resetGame}
+              className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold font-orbitron rounded-xl py-4 shadow-xl shadow-emerald-500/20 transition-all duration-300 hover:scale-102 cursor-pointer group"
+            >
+              <RotateCcw className="w-5 h-5 group-hover:rotate-45 transition-transform" /> JOGAR NOVAMENTE
             </button>
           </div>
         </div>

@@ -2,10 +2,10 @@
 
 import { Stars } from "@react-three/drei";
 import { Particles } from "./Particles";
-import { Player } from "./Player";
 import { FloatingObjects } from "./FloatingObjects";
 import { Projectiles } from "./Projectiles";
 import { FPSControls } from "./FPSControls";
+import { RouteScenario } from "./RouteScenario";
 
 export function GameScene() {
   return (
@@ -49,12 +49,12 @@ export function GameScene() {
       {/* First Person Controls */}
       <FPSControls />
 
-      {/* First Person Weapon HUD mesh */}
-      <Player />
-
       {/* Projectiles & static demons list */}
       <Projectiles />
       <FloatingObjects />
+      
+      {/* 3D Static Environments for 4 sections */}
+      <RouteScenario />
     </>
   );
 }

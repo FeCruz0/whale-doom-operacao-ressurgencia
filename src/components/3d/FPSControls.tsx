@@ -17,12 +17,13 @@ export function FPSControls() {
   const isPaused = useGameStore((state) => state.isPaused);
   const shootBubble = useGameStore((state) => state.shootBubble);
   const updateWorld = useGameStore((state) => state.updateWorld);
+  const updateSection = useGameStore((state) => state.updateSection);
 
-  const speed = 40; // Swimming speed (units/sec)
+  const speed = 18; // Reduced speed for heavier, more graceful movement
   const boundary = {
     x: 75,
-    y: 45,
-    z: { min: -190, max: 30 }
+    y: 460, // Increased maximum height to accommodate the climb up to the surface
+    z: { min: -2000, max: 30 }
   };
 
   // Keep track of player position via local vector
@@ -88,8 +89,8 @@ export function FPSControls() {
     // WASD movement
     if (keys.forward) moveVec.current.add(forwardVec.current);
     if (keys.backward) moveVec.current.sub(forwardVec.current);
-    if (keys.right) moveVec.current.sub(rightVec.current); // Right-vector cross-product points left by default, sub moves right
-    if (keys.left) moveVec.current.add(rightVec.current);
+    if (keys.right) moveVec.current.add(rightVec.current); // Fixed inversion
+    if (keys.left) moveVec.current.sub(rightVec.current);
 
     // Vertical Deep-Sea natação (Space = Subir, Shift = Descer)
     if (keys.up) moveVec.current.y += 1.0;
@@ -105,6 +106,9 @@ export function FPSControls() {
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, -boundary.x, boundary.x);
     camera.position.y = THREE.MathUtils.clamp(camera.position.y, -boundary.y, boundary.y);
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, boundary.z.min, boundary.z.max);
+
+    // Update section in store based on player position
+    updateSection(camera.position.z);
 
     // Update shared ref for obstacle collision calculation
     playerPositionRef.current.copy(camera.position);
