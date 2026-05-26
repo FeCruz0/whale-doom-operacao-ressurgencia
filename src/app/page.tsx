@@ -34,7 +34,7 @@ export default function Home() {
   // Sync state checking if PointerLock is active
   useEffect(() => {
     const handleLockChange = () => {
-      if (document.pointerLockElement === document.body) {
+      if (document.pointerLockElement !== null) {
         setIsLocked(true);
         useGameStore.setState({ isPaused: false });
       } else {

@@ -37,7 +37,7 @@ export function FPSControls() {
   useEffect(() => {
     const handleMouseClick = (e: MouseEvent) => {
       if (!isPlaying || isPaused) return;
-      if (document.pointerLockElement !== document.body) return; // Only shoot if locked
+      if (document.pointerLockElement === null) return; // Only shoot if locked
 
       if (e.button === 0) {
         // Get camera direction
