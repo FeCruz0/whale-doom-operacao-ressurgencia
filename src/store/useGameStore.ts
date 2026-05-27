@@ -3,9 +3,15 @@ import { create } from "zustand";
 export interface TrashItem {
   id: number;
   position: [number, number, number];
-  type: "toxic-barrel" | "plastic-bag" | "scrap-metal";
+  type: "toxic-barrel" | "plastic-bag" | "scrap-metal" | "plastic-bottle" | "floating-bag" | "ghost-net" | "tin-can" | "tire";
   size: number;
   hitRadius: number;
+}
+
+export interface OilSlickItem {
+  id: number;
+  position: [number, number, number];
+  radius: number;
 }
 
 export interface ProjectileItem {
@@ -44,6 +50,13 @@ interface GameState {
   sectionNotification: { title: string; desc: string; id: number } | null;
   nearShipwreck: boolean;
   
+  // New properties for ecological additions
+  trashCleaned: number;
+  oilSlicks: OilSlickItem[];
+  inOilSlick: boolean;
+  oilDamageAccumulator: number;
+  setInOilSlick: (inOilSlick: boolean) => void;
+  
   startGame: () => void;
   resetGame: () => void;
   togglePause: () => void;
@@ -59,44 +72,96 @@ export const useGameStore = create<GameState>((set, get) => {
   // Helper to generate trash distributed across sections along the diagonal upward slope
   const generateDistributedTrash = (): TrashItem[] => {
     const initialTrash: TrashItem[] = [];
-    const types: TrashItem["type"][] = ["toxic-barrel", "plastic-bag", "scrap-metal"];
     let idCounter = 0;
 
     // Distribute 40 items total (10 per section)
     const distributions = [
-      { zMin: -400, zMax: -50, xRange: 60, yMinOffset: -15, yMaxOffset: 15 },    // Sec 1
-      { zMin: -950, zMax: -500, xRange: 45, yMinOffset: -15, yMaxOffset: 15 },  // Sec 2
-      { zMin: -1550, zMax: -1050, xRange: 15, yMinOffset: -15, yMaxOffset: 15 }, // Sec 3 (narrow)
-      { zMin: -1950, zMax: -1650, xRange: 60, yMinOffset: -15, yMaxOffset: -5 } // Sec 4
+      { zMin: -400, zMax: -50, xRange: 60, yMinOffset: -15, yMaxOffset: 15, types: ["plastic-bottle", "floating-bag"] as TrashItem["type"][] },    // Sec 1
+      { zMin: -950, zMax: -500, xRange: 45, yMinOffset: -15, yMaxOffset: 15, types: ["ghost-net"] as TrashItem["type"][] },  // Sec 2
+      { zMin: -1550, zMax: -1050, xRange: 15, yMinOffset: -15, yMaxOffset: 15, types: ["ghost-net"] as TrashItem["type"][] }, // Sec 3 (narrow)
+      { zMin: -1950, zMax: -1650, xRange: 60, yMinOffset: -15, yMaxOffset: -5, types: ["tin-can", "tire"] as TrashItem["type"][] } // Sec 4
     ];
 
-    distributions.forEach((dist) => {
+    distributions.forEach((dist, idx) => {
       for (let i = 0; i < 10; i++) {
-        const type = types[Math.floor(Math.random() * types.length)];
-        const size = 1.0 + Math.random() * 2.0;
+        const type = dist.types[Math.floor(Math.random() * dist.types.length)];
+        const size = 1.2 + Math.random() * 1.8;
         
         // Pick a random Z in the section
         const z = dist.zMin + Math.random() * (dist.zMax - dist.zMin);
         
         // Calculate sloped baseline Y
         const slopeY = -35 + (-z * 0.22);
-        const y = slopeY + dist.yMinOffset + Math.random() * (dist.yMaxOffset - dist.yMinOffset);
+        
+        let x = (Math.random() - 0.5) * dist.xRange * 2;
+        let y = slopeY + dist.yMinOffset + Math.random() * (dist.yMaxOffset - dist.yMinOffset);
 
-        initialTrash.push({
-          id: idCounter++,
-          position: [
-            (Math.random() - 0.5) * dist.xRange * 2,
-            y,
-            z,
-          ],
-          type,
-          size,
-          hitRadius: size * 1.2,
-        });
+        // Adjust positioning for specific items
+        if (type === "ghost-net") {
+          // Put ghost nets close to the canyon walls or columns
+          const side = Math.random() < 0.5 ? -1 : 1;
+          if (idx === 1) {
+            // Section 2 columns or walls
+            x = side * (35 + Math.random() * 15);
+          } else {
+            // Section 3 narrow canyon walls
+            x = side * (16 + Math.random() * 5);
+          }
+          // Make ghost nets larger
+          const netSize = 3.5 + Math.random() * 2.0;
+          initialTrash.push({
+            id: idCounter++,
+            position: [x, y, z],
+            type,
+            size: netSize,
+            hitRadius: netSize * 1.5,
+          });
+        } else if (type === "tin-can" || type === "tire") {
+          // Lie on the seabed floor
+          const floorY = -45 + (-z * 0.22);
+          y = floorY + size * 0.5; // sit on ground
+          initialTrash.push({
+            id: idCounter++,
+            position: [x, y, z],
+            type,
+            size,
+            hitRadius: size * 1.2,
+          });
+        } else {
+          // Standard floating bottles and bags
+          initialTrash.push({
+            id: idCounter++,
+            position: [x, y, z],
+            type,
+            size,
+            hitRadius: size * 1.2,
+          });
+        }
       }
     });
 
     return initialTrash;
+  };
+
+  const generateOilSlicks = (): OilSlickItem[] => {
+    const slicks: OilSlickItem[] = [];
+    const zPositions = [-250, -380, -700, -900, -1300, -1700, -1850];
+    const xOffsets = [-15, 20, -25, 15, 0, -20, 25];
+    const radii = [18, 22, 20, 25, 15, 22, 18];
+
+    for (let i = 0; i < zPositions.length; i++) {
+      const z = zPositions[i];
+      const x = xOffsets[i];
+      const slopeY = -35 + (-z * 0.22);
+      // Floating in the water column
+      const y = slopeY + 5 + Math.random() * 10;
+      slicks.push({
+        id: i,
+        position: [x, y, z],
+        radius: radii[i]
+      });
+    }
+    return slicks;
   };
 
   return {
@@ -113,6 +178,13 @@ export const useGameStore = create<GameState>((set, get) => {
     currentSection: 1,
     sectionNotification: null,
     nearShipwreck: false,
+    
+    trashCleaned: 0,
+    oilSlicks: [],
+    inOilSlick: false,
+    oilDamageAccumulator: 0,
+
+    setInOilSlick: (inOilSlick) => set({ inOilSlick }),
 
     startGame: () => {
       set({
@@ -133,6 +205,10 @@ export const useGameStore = create<GameState>((set, get) => {
           desc: SECTIONS[0].desc,
         },
         nearShipwreck: false,
+        trashCleaned: 0,
+        oilSlicks: generateOilSlicks(),
+        inOilSlick: false,
+        oilDamageAccumulator: 0,
       });
     },
 
@@ -150,6 +226,10 @@ export const useGameStore = create<GameState>((set, get) => {
         currentSection: 1,
         sectionNotification: null,
         nearShipwreck: false,
+        trashCleaned: 0,
+        oilSlicks: [],
+        inOilSlick: false,
+        oilDamageAccumulator: 0,
       });
     },
 
@@ -159,7 +239,7 @@ export const useGameStore = create<GameState>((set, get) => {
       set((state) => {
         const nextLives = Math.max(0, state.lives - amount);
         if (nextLives <= 0) {
-          return { lives: 0, isPlaying: false, isGameOver: true };
+          return { lives: 0, isPlaying: false, isGameOver: true, inOilSlick: false };
         }
         return { lives: nextLives };
       });
@@ -237,7 +317,7 @@ export const useGameStore = create<GameState>((set, get) => {
     },
 
     updateWorld: (delta) => {
-      const { projectiles, trash, isPaused, isPlaying } = get();
+      const { projectiles, trash, isPaused, isPlaying, inOilSlick, lives, oilDamageAccumulator } = get();
       if (isPaused || !isPlaying) return;
 
       // 1. Move and decay projectiles
@@ -284,11 +364,39 @@ export const useGameStore = create<GameState>((set, get) => {
       // 2. Filter remaining active trash items
       const remainingTrash = trash.filter((t) => !hitTrashIds.has(t.id));
       const scoreGain = hitTrashIds.size * 150; // 150 pts per trash destroyed
+      const trashCleanedCount = hitTrashIds.size;
+
+      // 3. Process oil damage over time (lose 0.35 life / second to make it challenging but fair)
+      let nextLives = lives;
+      let nextAccumulator = oilDamageAccumulator;
+      let nextIsPlaying: boolean = isPlaying;
+      let nextIsGameOver: boolean = get().isGameOver;
+
+      if (inOilSlick) {
+        nextAccumulator += delta * 0.35;
+        if (nextAccumulator >= 1.0) {
+          const dmg = Math.floor(nextAccumulator);
+          nextLives = Math.max(0, lives - dmg);
+          nextAccumulator -= dmg;
+          if (nextLives <= 0) {
+            nextIsPlaying = false;
+            nextIsGameOver = true;
+          }
+        }
+      } else {
+        // Decay accumulator slowly when outside
+        nextAccumulator = Math.max(0, nextAccumulator - delta * 0.5);
+      }
 
       set((state) => ({
         projectiles: activeProjectiles,
         trash: remainingTrash,
         score: state.score + scoreGain,
+        trashCleaned: state.trashCleaned + trashCleanedCount,
+        lives: nextLives,
+        isPlaying: nextIsPlaying,
+        isGameOver: nextIsGameOver,
+        oilDamageAccumulator: nextAccumulator,
       }));
     }
   };

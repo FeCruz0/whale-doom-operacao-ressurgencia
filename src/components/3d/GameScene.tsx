@@ -6,6 +6,7 @@ import { FloatingObjects } from "./FloatingObjects";
 import { Projectiles } from "./Projectiles";
 import { FPSControls } from "./FPSControls";
 import { RouteScenario } from "./RouteScenario";
+import { OilSlicks } from "./OilSlicks";
 
 export function GameScene() {
   return (
@@ -52,6 +53,7 @@ export function GameScene() {
       {/* Projectiles & static demons list */}
       <Projectiles />
       <FloatingObjects />
+      <OilSlicks />
       
       {/* 3D Static Environments for 4 sections */}
       <RouteScenario />

@@ -102,6 +102,90 @@ export function FloatingObjects() {
                 />
               </mesh>
             )}
+
+            {trash.type === "plastic-bottle" && (
+              <group rotation={[Math.random(), Math.random(), 0]}>
+                <mesh castShadow receiveShadow>
+                  {/* Bottle body */}
+                  <cylinderGeometry args={[size * 0.18, size * 0.18, size * 0.7, 8]} />
+                  <meshStandardMaterial
+                    color="#bae6fd"
+                    roughness={0.1}
+                    metalness={0.1}
+                    transparent={true}
+                    opacity={0.7}
+                  />
+                </mesh>
+                <mesh position={[0, size * 0.38, 0]} castShadow>
+                  {/* Bottle neck */}
+                  <cylinderGeometry args={[size * 0.08, size * 0.08, size * 0.12, 8]} />
+                  <meshStandardMaterial color="#bae6fd" transparent={true} opacity={0.7} />
+                </mesh>
+                <mesh position={[0, size * 0.45, 0]}>
+                  {/* Bottle cap */}
+                  <cylinderGeometry args={[size * 0.09, size * 0.09, size * 0.05, 8]} />
+                  <meshStandardMaterial color="#ef4444" />
+                </mesh>
+              </group>
+            )}
+
+            {trash.type === "floating-bag" && (
+              <mesh castShadow rotation={[Math.random(), 0, Math.random()]}>
+                <dodecahedronGeometry args={[size * 0.55, 1]} />
+                <meshStandardMaterial
+                  color="#e2e8f0"
+                  emissive="#94a3b8"
+                  emissiveIntensity={0.3}
+                  roughness={0.2}
+                  metalness={0.1}
+                  transparent={true}
+                  opacity={0.5}
+                />
+              </mesh>
+            )}
+
+            {trash.type === "ghost-net" && (
+              <group>
+                <mesh castShadow receiveShadow>
+                  <boxGeometry args={[size * 1.5, size * 1.5, 0.2]} />
+                  <meshStandardMaterial
+                    color="#475569"
+                    roughness={0.9}
+                    wireframe={true}
+                  />
+                </mesh>
+                <mesh position={[-size * 0.5, size * 0.7, 0]}>
+                  <torusGeometry args={[size * 0.15, size * 0.08, 6, 8]} />
+                  <meshStandardMaterial color="#f97316" roughness={0.5} />
+                </mesh>
+                <mesh position={[size * 0.5, size * 0.7, 0]}>
+                  <torusGeometry args={[size * 0.15, size * 0.08, 6, 8]} />
+                  <meshStandardMaterial color="#f97316" roughness={0.5} />
+                </mesh>
+              </group>
+            )}
+
+            {trash.type === "tin-can" && (
+              <mesh castShadow receiveShadow rotation={[Math.random(), Math.random(), 0]}>
+                <cylinderGeometry args={[size * 0.22, size * 0.22, size * 0.5, 8]} />
+                <meshStandardMaterial
+                  color="#94a3b8"
+                  roughness={0.3}
+                  metalness={0.8}
+                />
+              </mesh>
+            )}
+
+            {trash.type === "tire" && (
+              <mesh castShadow receiveShadow rotation={[Math.PI / 2, Math.random() * 0.5, 0]}>
+                <torusGeometry args={[size * 0.38, size * 0.16, 8, 16]} />
+                <meshStandardMaterial
+                  color="#1e293b"
+                  roughness={0.85}
+                  metalness={0.1}
+                />
+              </mesh>
+            )}
           </group>
         );
       })}

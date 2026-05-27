@@ -18,6 +18,8 @@ export function FPSControls() {
   const shootBubble = useGameStore((state) => state.shootBubble);
   const updateWorld = useGameStore((state) => state.updateWorld);
   const updateSection = useGameStore((state) => state.updateSection);
+  const oilSlicks = useGameStore((state) => state.oilSlicks);
+  const setInOilSlick = useGameStore((state) => state.setInOilSlick);
 
   const speed = 18; // Reduced speed for heavier, more graceful movement
   const boundary = {
@@ -211,6 +213,21 @@ export function FPSControls() {
 
     // Update section in store based on player position
     updateSection(camera.position.z);
+
+    // E. Check if player is inside any oil slick
+    let inSlick = false;
+    for (const slick of oilSlicks) {
+      const dx = camera.position.x - slick.position[0];
+      const dy = camera.position.y - slick.position[1];
+      const dz = camera.position.z - slick.position[2];
+      const distXZ = Math.sqrt(dx * dx + dz * dz);
+      // Check XZ radius proximity and vertical proximity within a thin column (Y height +/- 5 units)
+      if (distXZ < slick.radius && Math.abs(dy) < 5.0) {
+        inSlick = true;
+        break;
+      }
+    }
+    setInOilSlick(inSlick);
 
     // Update shared ref for obstacle collision calculation
     playerPositionRef.current.copy(camera.position);

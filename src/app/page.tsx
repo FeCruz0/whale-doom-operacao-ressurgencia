@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useGameStore } from "@/store/useGameStore";
-import { Play, RotateCcw, Shield, Award, Crosshair, Eye, Info, Pause, PlayCircle } from "lucide-react";
+import { Play, RotateCcw, Shield, Award, Crosshair, Eye, Info, Pause, PlayCircle, Trash2, Droplets } from "lucide-react";
 import { useState, useEffect } from "react";
 
 // Dynamically import the GameCanvas component with SSR disabled
@@ -20,6 +20,7 @@ export default function Home() {
   const {
     score,
     lives,
+    boost,
     isPlaying,
     isGameOver,
     isGameWon,
@@ -30,6 +31,8 @@ export default function Home() {
     togglePause,
     currentSection,
     nearShipwreck,
+    trashCleaned,
+    inOilSlick,
   } = useGameStore();
 
   const [isLocked, setIsLocked] = useState(false);
@@ -78,6 +81,15 @@ export default function Home() {
         <GameCanvas />
       </div>
 
+      {/* OIL DAMAGE SCREEN OVERLAY */}
+      {isPlaying && !isGameOver && inOilSlick && (
+        <div className="absolute inset-0 pointer-events-none z-30 animate-pulse border-[12px] border-red-950/85 shadow-[inset_0_0_100px_rgba(185,28,28,0.95)] bg-red-900/5">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 backdrop-blur-md bg-red-950/90 border border-red-500/50 rounded-full px-5 py-2 text-[10px] text-red-300 font-bold font-orbitron tracking-widest uppercase shadow-2xl">
+            <Droplets className="w-4 h-4 text-red-500 animate-bounce" /> CONTAMINAÇÃO POR ÓLEO: DANIFICANDO O CASCO!
+          </div>
+        </div>
+      )}
+
       {/* 1. FPS CROSSHAIR (Only visible during gameplay and when pointer is locked) */}
       {isPlaying && !isGameOver && isLocked && !isPaused && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
@@ -120,17 +132,17 @@ export default function Home() {
           </div>
 
           {/* Main Bottom Glass HUD */}
-          <div className="backdrop-blur-md bg-slate-900/70 border border-slate-700/40 rounded-2xl p-4 w-full max-w-4xl shadow-2xl flex justify-between items-center pointer-events-auto select-none">
-            {/* HUD segment: ESCUDO DO CASCO */}
-            <div className="flex items-center gap-3 w-1/3">
+          <div className="backdrop-blur-md bg-slate-900/70 border border-slate-700/40 rounded-2xl p-4 w-full max-w-5xl shadow-2xl flex justify-between items-center pointer-events-auto select-none gap-4">
+            {/* HUD segment: ESCUDO DO CASCO & OXIGÊNIO */}
+            <div className="flex items-center gap-3 w-1/4">
               <Shield className="text-red-500 w-6 h-6 animate-pulse" />
               <div>
                 <p className="text-[10px] text-red-400 font-semibold tracking-widest font-orbitron">ESTRUTURA DO CASCO</p>
-                <div className="flex gap-1.5 mt-1">
+                <div className="flex gap-1 mt-0.5">
                   {Array.from({ length: 3 }).map((_, i) => (
                     <div
                       key={i}
-                      className={`h-3 w-8 rounded-sm border ${
+                      className={`h-2.5 w-6 rounded-sm border ${
                         i < lives
                           ? "bg-red-500 border-red-400 shadow-[0_0_8px_#ef4444]"
                           : "bg-slate-900/80 border-slate-800"
@@ -138,24 +150,48 @@ export default function Home() {
                     />
                   ))}
                 </div>
+                {/* Oxigênio/Stamina HUD Bar */}
+                <div className="mt-1">
+                  <p className="text-[8px] text-cyan-400 font-semibold tracking-wider font-orbitron uppercase">OXIGÊNIO / ENERGIA</p>
+                  <div className="w-20 bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800/80 mt-0.5">
+                    <div
+                      className="bg-cyan-400 h-full rounded-full animate-pulse shadow-[0_0_6px_#22d3ee] transition-all duration-300"
+                      style={{ width: `${boost}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* HUD segment: LIXO RECOLHIDO (Lixo Limpo) */}
+            <div className="flex items-center justify-center gap-3 w-1/4 border-l border-slate-800/80 px-2">
+              <Trash2 className="text-emerald-400 w-5 h-5 animate-bounce-slow" />
+              <div>
+                <p className="text-[10px] text-emerald-400 font-semibold tracking-widest font-orbitron">LIXO RECOLHIDO</p>
+                <p className="text-xl font-bold font-orbitron text-white tracking-widest mt-0.5">
+                  {String(trashCleaned).padStart(3, "0")} <span className="text-[9px] text-slate-500">LIMPO</span>
+                </p>
               </div>
             </div>
 
             {/* HUD segment: DEBRIS DEMONS COUNT (Center target monitor) */}
-            <div className="flex flex-col items-center justify-center w-1/3 text-center border-l border-r border-slate-800/80 px-4">
-              <span className="text-[10px] text-emerald-400 font-bold font-orbitron tracking-widest flex items-center gap-1">
-                <Crosshair className="w-3.5 h-3.5 fill-emerald-500 animate-spin-slow" /> POLUIÇÃO RESTANTE
-              </span>
-              <p className="text-2xl font-black font-orbitron text-emerald-400 tracking-wider mt-1 animate-pulse">
-                {String(activeTrashCount).padStart(2, "0")} <span className="text-xs text-slate-500">DEBRIS</span>
-              </p>
+            <div className="flex items-center justify-center gap-3 w-1/4 border-l border-r border-slate-800/80 px-2 text-center">
+              <Crosshair className="text-amber-500 w-5 h-5 animate-spin-slow" />
+              <div className="text-left">
+                <span className="text-[10px] text-amber-500 font-bold font-orbitron tracking-widest">
+                  POLUIÇÃO RESTANTE
+                </span>
+                <p className="text-xl font-black font-orbitron text-amber-400 tracking-wider mt-0.5">
+                  {String(activeTrashCount).padStart(2, "0")} <span className="text-[9px] text-slate-500">DEBRIS</span>
+                </p>
+              </div>
             </div>
 
             {/* HUD segment: SCORE */}
-            <div className="flex items-center justify-end gap-3 w-1/3 text-right">
+            <div className="flex items-center justify-end gap-3 w-1/4 text-right">
               <div>
                 <p className="text-[10px] text-cyan-400 font-semibold tracking-widest font-orbitron">PONTUAÇÃO DO SISTEMA</p>
-                <p className="text-2xl font-bold font-orbitron tracking-widest text-white mt-1 cyber-glow">
+                <p className="text-xl font-bold font-orbitron tracking-widest text-white mt-0.5 cyber-glow">
                   {String(score).padStart(6, "0")}
                 </p>
               </div>
