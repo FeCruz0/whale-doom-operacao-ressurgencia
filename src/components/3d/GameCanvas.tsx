@@ -1,9 +1,10 @@
 "use client";
 
+import React from "react";
 import { Canvas } from "@react-three/fiber";
 import { GameScene } from "./GameScene";
 
-export default function GameCanvas() {
+function GameCanvasComponent() {
   return (
     <div className="w-full h-full relative overflow-hidden select-none">
       <Canvas
@@ -20,3 +21,6 @@ export default function GameCanvas() {
     </div>
   );
 }
+
+export default React.memo(GameCanvasComponent);
+

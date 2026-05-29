@@ -1,6 +1,6 @@
 "use client";
 
-import { useGameStore } from "@/store/useGameStore";
+import { useGameStore, ProjectileItem } from "@/store/useGameStore";
 import * as THREE from "three";
 
 export function Projectiles() {
@@ -8,7 +8,7 @@ export function Projectiles() {
 
   return (
     <group>
-      {projectiles.map((proj) => (
+      {projectiles.map((proj: ProjectileItem) => (
         <mesh key={proj.id} position={proj.position}>
           {/* Bubble Sphere */}
           <sphereGeometry args={[0.4, 8, 8]} />

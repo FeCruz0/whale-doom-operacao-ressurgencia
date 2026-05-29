@@ -181,11 +181,10 @@ Raiz declarativa da cena. Define a atmosfera visual global:
 
 | Elemento | Descrição |
 |---|---|
-| `<color>` | Cor de fundo `#020617` (azul-marinho escuro) |
-| `<fog>` | Névoa linear de profundidade (near: 10, far: 160) |
-| `<ambientLight>` | Luz ambiente ciano `#0891b2` (simula difusão subaquática) |
-| `<directionalLight>` | Raios de sol vindos de cima `#a5f3fc`, com sombras |
-| `<pointLight>` x2 | Luzes bioluminescentes azul e roxo |
+| `<color>` | Cor de fundo `#020617` (azul-marinho escuro, interpola dinamicamente) |
+| `<fog>` | Névoa linear de profundidade (interpola de 10-160 a 60-450) |
+| `<ambientLight>` | Luz ambiente atenuada `#88aabb` para um tom oceânico mais natural e orgânico |
+| `<directionalLight>` | Luz direcional `#c8e8f0` para clarear a areia de forma realista |
 | `<Stars>` | 1500 "estrelas" do Drei tratadas como plâncton profundo |
 | `<Particles>` | 400 partículas ciano flutuando com ondas sinusoidais |
 
@@ -229,7 +228,7 @@ Array de objetos colisores que o jogador não pode atravessar. Três tipos:
 | `box` | `xMin/xMax, yMin/yMax, zMin/zMax` | AABB overlap + push no eixo de menor penetração |
 
 Colisores registrados:
-- 4 pilares cilíndricos (Seção 2, Paredões do Pontal)
+- 2 grandes paredes rochosas contínuas laterais (Seção 2, Paredões do Pontal) usando colisores tipo box
 - 3 corais esféricos (Seção 4, Arraial)
 - 2 pilares do portal (Z = -1980)
 - 2 caldeiras do Vapor Harlingen + 1 box (rib cage) (Z = -1780)
@@ -251,7 +250,7 @@ Define **toda a geometria estática do mapa** usando primitivas Three.js. Não u
 | Seção | Z Range | Y médio | Elementos |
 |---|---|---|---|
 | **1 — Mar Aberto** | 30 a -450 | ~-35 | Chão plano escuro |
-| **2 — Paredões do Pontal** | -450 a -1000 | ~120 | 4 pilares cilíndricos enormes |
+| **2 — Paredões do Pontal** | -450 a -1000 | ~120 | Duas grandes paredes rochosas contínuas (cânion estreito) |
 | **3 — Estreito do Boqueirão** | -1000 a -1600 | ~246 | Paredes de cânion + arcos rochosos |
 | **4 — Arraial do Cabo** | -1600 a -2000 | ~361 | Chão dourado, corais, Vapor Harlingen, portal |
 
@@ -279,7 +278,7 @@ A névoa também fica mais clara e mais distante nas águas rasas.
 ---
 
 ### `FloatingObjects.tsx`
-Renderiza e detecta colisão dos 40 detritos de poluição.
+Renderiza e detecta colisão dos detritos de poluição ativos.
 
 **Tipos de Detrito**
 
@@ -288,6 +287,9 @@ Renderiza e detecta colisão dos 40 detritos de poluição.
 | `toxic-barrel` | `CylinderGeometry` + 2 tori | Amarelo tóxico `#eab308` | Barril industrial com anéis verdes radioativos |
 | `plastic-bag` | `DodecahedronGeometry` | Roxo `#a855f7` | Blob translúcido e brilhante |
 | `scrap-metal` | `BoxGeometry` | Vermelho `#ef4444` | Bloco de metal enferrujado |
+
+**Manchas de Óleo (Oil Slicks)**
+- Representadas com o material customizado `OilSlickMaterial` no qual a cor é um preto profundo orgânico (`#01010c`) com brilho sutil nas bordas via Fresnel, removendo tons néon e amarelos artificiais.
 
 **Colisão Player ↔ Detritos**
 ```typescript
@@ -430,7 +432,7 @@ O `page.tsx` sincroniza o estado `isLocked` via `document.addEventListener('poin
 | Eixo | Limite |
 |---|---|
 | **Y (vertical)** | `floorY + 2.5` até `floorY + 68` (relativo à rampa) |
-| **X (lateral)** | ±72 unidades (geral) / ±21.5 (no cânion Z∈[-1600,-1000]) |
+| **X (lateral)** | ±72 unidades (geral) / ±40 (Seção 2 Z∈[-1000,-450]) / ±21.5 (Seção 3 Z∈[-1600,-1000]) |
 | **Z (profundidade)** | max: 30 / min: -2000 |
 
 ---
@@ -442,21 +444,38 @@ Z = 30 (início)                                         Z = -2000 (fim)
 │                                                               │
 ▼ ──── Seção 1 ──── ─── Seção 2 ─── ── Seção 3 ── ─ Seção 4 ─ ▼
   Mar Aberto         Paredões do      Estreito do    Arraial do
-  (Cabo Frio)        Pontal           Boqueirão      Cabo
+  (Cabo Frio)        Pontal           Boqueirão      Cabo (Livre de poluição)
   Z: 0 a -450        Z: -450 a -1000  Z: -1000       Z: -1600
                                       a -1600         a -2000
 
   Y ≈ -35            Y ≈ 50-134       Y ≈ 160-290    Y ≈ 295-395
-  Chão escuro        Pilares coloss.  Cânion estreito Areia dourada
-                                      + arcos         + corais
-                                                      + Harlingen
-                                                      + Portal
+  Areia dourada      Silt escuro      Dunas de areia Areia dourada clara
+  escura (caustics)                   escura         (Portal & Corais)
 ```
 
 ### Seção 4 — Elementos Especiais
-- **Naufrágio Vapor Harlingen** (Z = -1780): trigger educativo + colisores
-- **Portal de Chegada** (Z = -1980): 2 pilares + arco emissivos em ciano `#22d3ee`
-- **Condição de Vitória**: chegar em Z ≤ -1980
+- **Livre de Poluição**: Arraial do Cabo (Z ≤ -1600) é uma zona de preservação totalmente livre de lixo e manchas de óleo.
+- **Naufrágio Vapor Harlingen** (Z = -1780): trigger educativo + colisores.
+- **Portal de Chegada** (Z = -1980): 2 pilares + arco de basalto vulcânico com emissivos em ciano `#22d3ee` e uma orbe de vitória flutuante.
+- **Condição de Vitória**: chegar em Z ≤ -1980.
+
+---
+
+## 9.1 Materiais & Shaders Customizados (Visual Overhaul)
+
+Os elementos tridimensionais utilizam shaders GLSL customizados compilados dinamicamente ([CustomShaders.ts](file:///c:/Users/Felipe%20Cruz/Documents/projetos/whale-doom-operacao-ressurgencia/src/components/3d/materials/CustomShaders.ts)):
+
+1. **`SeabedMaterial` (Chão do Oceano)**:
+   - Simula ondulações e dunas orgânicas dinâmicas com três oitavas de ruído de Perlin.
+   - Mistura dinamicamente um degradê de areia dourada de acordo com a profundidade do jogador (`uShallowFactor` variando de `0.25` a `1.0`), clareando gradualmente em direção a Arraial do Cabo.
+2. **`RockMaterial` (Rochas Decorativas)**:
+   - Gera veias de sedimentos horizontais baseadas na coordenada Y global das rochas e aplica sombreamento de oclusão de frestas (Crevice AO) para acentuar o relevo natural.
+3. **`BiolumRockMaterial`**:
+   - Material shader contendo veias bioluminescentes ciano, mantido para pré-compilação na GPU e warm-up de assets, porém removido das colunas principais e paredões de pedra para manter o cenário limpo e natural.
+4. **`OilSlickMaterial` (Manchas de Óleo)**:
+   - Produz uma textura preta espessa com um brilho de Fresnel sutil e ondas na borda.
+5. **`CausticsMaterial` (Cáusticas do Mar Aberto)**:
+   - Desenha padrões de refração de luz solar em movimento senoidal sobreposto no chão da Seção 1.
 
 ---
 

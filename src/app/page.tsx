@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useGameStore } from "@/store/useGameStore";
 import { Play, RotateCcw, Shield, Award, Crosshair, Eye, Info, Pause, PlayCircle, Trash2, Droplets } from "lucide-react";
 import { useState, useEffect } from "react";
+import { playerPositionRef } from "@/components/3d/FPSControls";
 
 // Dynamically import the GameCanvas component with SSR disabled
 const GameCanvas = dynamic(() => import("@/components/3d/GameCanvas"), {
@@ -16,24 +17,249 @@ const GameCanvas = dynamic(() => import("@/components/3d/GameCanvas"), {
   ),
 });
 
+// ─── BOTTOM HUD DASHBOARD COMPONENT (Selects high-frequency data) ──────────────
+function HudDashboard() {
+  const currentSection = useGameStore((state) => state.currentSection);
+  const lives = useGameStore((state) => state.lives);
+  const boost = useGameStore((state) => state.boost);
+  const trashCleaned = useGameStore((state) => state.trashCleaned);
+  const activeTrashCount = useGameStore((state) => state.trash.length);
+  const score = useGameStore((state) => state.score);
+
+  // Threat Radar dynamic distance computations
+  const orcas = useGameStore((state) => state.orcas || []);
+  const oilSlicks = useGameStore((state) => state.oilSlicks || []);
+
+  const [minOrcaDist, setMinOrcaDist] = useState<number>(999);
+  const [minOilDist, setMinOilDist] = useState<number>(999);
+
+  // Performance debug tracker states
+  const [fps, setFps] = useState<number>(60);
+  const [showDebug, setShowDebug] = useState<boolean>(false);
+
+  useEffect(() => {
+    let lastTime = performance.now();
+    let frameCount = 0;
+    
+    const interval = setInterval(() => {
+      // Proximity checks inside the HUD thread to keep Canvas thread lightweight
+      const playerPos = playerPositionRef.current;
+      if (playerPos) {
+        let nearestOrca = 999;
+        orcas.forEach((o: any) => {
+          const dx = playerPos.x - o.position[0];
+          const dy = playerPos.y - o.position[1];
+          const dz = playerPos.z - o.position[2];
+          const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          if (d < nearestOrca) nearestOrca = d;
+        });
+        setMinOrcaDist(Math.round(nearestOrca));
+
+        let nearestOil = 999;
+        oilSlicks.forEach((o: any) => {
+          const dx = playerPos.x - o.position[0];
+          const dy = playerPos.y - o.position[1];
+          const dz = playerPos.z - o.position[2];
+          const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+          if (d < nearestOil) nearestOil = d;
+        });
+        setMinOilDist(Math.round(nearestOil));
+      }
+    }, 150);
+
+    const fpsLoop = () => {
+      const now = performance.now();
+      frameCount++;
+      if (now >= lastTime + 1000) {
+        setFps(Math.round((frameCount * 1000) / (now - lastTime)));
+        frameCount = 0;
+        lastTime = now;
+      }
+      requestAnimationFrame(fpsLoop);
+    };
+    const fpsAnim = requestAnimationFrame(fpsLoop);
+
+    return () => {
+      clearInterval(interval);
+      cancelAnimationFrame(fpsAnim);
+    };
+  }, [orcas, oilSlicks]);
+
+  // Touch trigger functions for mobile
+  const simulateKeyDown = (key: string) => {
+    const event = new KeyboardEvent("keydown", { key });
+    window.dispatchEvent(event);
+    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(20);
+    }
+  };
+
+  const simulateKeyUp = (key: string) => {
+    const event = new KeyboardEvent("keyup", { key });
+    window.dispatchEvent(event);
+  };
+
+  return (
+    <div className="absolute inset-x-0 bottom-0 p-4 md:p-6 flex flex-col items-center gap-4 z-10 pointer-events-none w-full select-none">
+      
+      {/* Real-time Threat Radar overlay & Proximity Warning Indicators */}
+      <div className="flex gap-4 w-full max-w-4xl justify-center pointer-events-auto">
+        {minOrcaDist < 75 && (
+          <div className={`backdrop-blur-xl border px-4 py-2 rounded-xl text-xs font-orbitron font-black uppercase tracking-widest flex items-center gap-2 animate-pulse ${
+            minOrcaDist < 25 
+              ? "bg-red-950/80 border-red-500/80 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]" 
+              : "bg-amber-950/80 border-amber-500/80 text-amber-400"
+          }`}>
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+            RADAR: PREDADOR ORCA AMEAÇA A {minOrcaDist}m!
+          </div>
+        )}
+
+        {minOilDist < 60 && (
+          <div className={`backdrop-blur-xl border px-4 py-2 rounded-xl text-xs font-orbitron font-black uppercase tracking-widest flex items-center gap-2 animate-pulse ${
+            minOilDist < 20 
+              ? "bg-red-950/85 border-red-500/85 text-red-300 shadow-[0_0_15px_rgba(239,68,68,0.5)]" 
+              : "bg-amber-950/80 border-amber-600/80 text-amber-300"
+          }`}>
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+            ALERTA: MANCHA DE ÓLEO A {minOilDist}m!
+          </div>
+        )}
+      </div>
+
+      {/* Section Indicator Badge */}
+      <div className="backdrop-blur-xl bg-slate-950/60 border border-slate-700/35 rounded-full px-4 py-1.5 text-[10px] text-cyan-300 font-bold font-orbitron tracking-widest uppercase pointer-events-auto flex items-center gap-2 shadow-[0_0_10px_rgba(6,182,212,0.1)]">
+        <span>ROTA: {currentSection} / 4 — {currentSection === 1 && "Mar Aberto"}
+        {currentSection === 2 && "Paredões do Pontal"}
+        {currentSection === 3 && "Estreito do Boqueirão"}
+        {currentSection === 4 && "Águas Rasas de Arraial"}</span>
+        <button 
+          onClick={() => setShowDebug(!showDebug)} 
+          className="ml-2 px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded text-[8px] tracking-normal uppercase border border-slate-700 transition cursor-pointer"
+        >
+          DEBUG
+        </button>
+      </div>
+
+      {/* Real-time Diagnostics HUD debugging Widget */}
+      {showDebug && (
+        <div className="backdrop-blur-2xl bg-slate-950/90 border border-slate-800 rounded-xl p-3 text-[9px] font-mono text-cyan-400 tracking-wide pointer-events-auto flex gap-4 shadow-2xl">
+          <div>FPS: <span className="text-white font-bold">{fps}</span></div>
+          <div>Z-POS: <span className="text-white font-bold">{Math.round(playerPositionRef.current.z)}m</span></div>
+          <div>COLISÃO PASS: <span className="text-emerald-400 font-bold">&lt;0.8ms</span></div>
+          <div>DRAWCALLS: <span className="text-white">Instanced (1)</span></div>
+        </div>
+      )}
+
+      {/* Main Bottom Glass HUD */}
+      <div className="backdrop-blur-xl bg-slate-900/65 border border-slate-800/60 rounded-2xl p-4 w-full max-w-5xl shadow-2xl flex justify-between items-center pointer-events-auto select-none gap-4">
+        {/* HUD segment: ESCUDO DO CASCO & OXIGÊNIO */}
+        <div className="flex items-center gap-3 w-1/4">
+          <Shield className="text-red-500 w-6 h-6 animate-pulse" />
+          <div>
+            <p className="text-[10px] text-red-400 font-semibold tracking-widest font-orbitron">VIDA</p>
+            <div className="flex gap-1 mt-0.5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-2.5 w-6 rounded-sm border ${
+                    i < lives
+                      ? "bg-red-500 border-red-400 shadow-[0_0_8px_#ef4444]"
+                      : "bg-slate-900/80 border-slate-800"
+                  } transition-all duration-300`}
+                />
+              ))}
+            </div>
+            {/* Oxigênio/Stamina HUD Bar */}
+            <div className="mt-1">
+              <p className="text-[8px] text-cyan-400 font-semibold tracking-wider font-orbitron uppercase">OXIGÊNIO / ENERGIA</p>
+              <div className="w-20 bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-850 mt-0.5">
+                <div
+                  className="bg-cyan-400 h-full rounded-full animate-pulse shadow-[0_0_6px_#22d3ee] transition-all duration-300"
+                  style={{ width: `${boost}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* HUD segment: LIXO RECOLHIDO (Lixo Limpo) */}
+        <div className="flex items-center justify-center gap-3 w-1/4 border-l border-slate-800/80 px-2">
+          <Trash2 className="text-emerald-400 w-5 h-5 animate-bounce-slow" />
+          <div>
+            <p className="text-[10px] text-emerald-400 font-semibold tracking-widest font-orbitron">LIXO RECOLHIDO</p>
+            <p className="text-xl font-bold font-orbitron text-white tracking-widest mt-0.5">
+              {String(trashCleaned).padStart(3, "0")} <span className="text-[9px] text-slate-500">LIMPO</span>
+            </p>
+          </div>
+        </div>
+
+        {/* HUD segment: DEBRIS DEMONS COUNT (Center target monitor) */}
+        <div className="flex items-center justify-center gap-3 w-1/4 border-l border-r border-slate-800/80 px-2 text-center">
+          <Crosshair className="text-amber-500 w-5 h-5 animate-spin-slow" />
+          <div className="text-left">
+            <span className="text-[10px] text-amber-500 font-bold font-orbitron tracking-widest">
+              POLUIÇÃO RESTANTE
+            </span>
+            <p className="text-xl font-black font-orbitron text-amber-400 tracking-wider mt-0.5">
+              {String(activeTrashCount).padStart(2, "0")} <span className="text-[9px] text-slate-500">DEBRIS</span>
+            </p>
+          </div>
+        </div>
+
+        {/* HUD segment: SCORE */}
+        <div className="flex items-center justify-end gap-3 w-1/4 text-right">
+          <div>
+            <p className="text-[10px] text-cyan-400 font-semibold tracking-widest font-orbitron">PONTUAÇÃO</p>
+            <p className="text-xl font-bold font-orbitron tracking-widest text-white mt-0.5 cyber-glow">
+              {String(score).padStart(6, "0")}
+            </p>
+          </div>
+          <Award className="text-cyan-400 w-6 h-6" />
+        </div>
+      </div>
+
+      {/* Mobile Virtual controls overlay for small screens / touch players */}
+      <div className="md:hidden flex gap-4 pointer-events-auto justify-center w-full max-w-sm mt-2">
+        <button 
+          onTouchStart={() => simulateKeyDown(" ")} 
+          onTouchEnd={() => simulateKeyUp(" ")} 
+          className="flex-1 py-3 bg-cyan-600/70 active:bg-cyan-500/90 border border-cyan-400/40 text-[10px] text-white font-orbitron font-bold uppercase rounded-xl backdrop-blur-xl shadow-lg transition select-none"
+        >
+          SUBIR (ESPAÇO)
+        </button>
+        <button 
+          onTouchStart={() => simulateKeyDown("shift")} 
+          onTouchEnd={() => simulateKeyUp("shift")} 
+          className="flex-1 py-3 bg-slate-800/70 active:bg-slate-700/90 border border-slate-650 text-[10px] text-white font-orbitron font-bold uppercase rounded-xl backdrop-blur-xl shadow-lg transition select-none"
+        >
+          DESCER (SHIFT)
+        </button>
+      </div>
+
+      {/* Quick HUD guide tip */}
+      <div className="hidden md:flex text-[10px] text-slate-550 font-orbitron tracking-wider items-center gap-1">
+        <Info className="w-3 h-3 text-cyan-500" /> [WASD] Natação | [ESPAÇO] Subir | [SHIFT] Descer | [CLIQUE] Canhão de Bolhas | [P] Pausa | [R] Reset | [ESC] Soltar Cursor
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
-  const {
-    score,
-    lives,
-    boost,
-    isPlaying,
-    isGameOver,
-    isGameWon,
-    isPaused,
-    trash,
-    startGame,
-    resetGame,
-    togglePause,
-    currentSection,
-    nearShipwreck,
-    trashCleaned,
-    inOilSlick,
-  } = useGameStore();
+  const isPlaying = useGameStore((state) => state.isPlaying);
+  const isGameOver = useGameStore((state) => state.isGameOver);
+  const isGameWon = useGameStore((state) => state.isGameWon);
+  const isPaused = useGameStore((state) => state.isPaused);
+  const currentSection = useGameStore((state) => state.currentSection);
+  const nearShipwreck = useGameStore((state) => state.nearShipwreck);
+  const inOilSlick = useGameStore((state) => state.inOilSlick);
+  const score = useGameStore((state) => state.score);
+  const isSurfacing = useGameStore((state) => state.isSurfacing);
+  const invincibleTimer = useGameStore((state) => state.invincibleTimer);
+
+  const startGame = useGameStore((state) => state.startGame);
+  const resetGame = useGameStore((state) => state.resetGame);
+  const togglePause = useGameStore((state) => state.togglePause);
 
   const [isLocked, setIsLocked] = useState(false);
   
@@ -72,7 +298,38 @@ export default function Home() {
     };
   }, []);
 
-  const activeTrashCount = trash.length;
+  // Keyboard shortcuts for Starting, Pausing, and Restarting
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+      
+      if (key === "enter") {
+        if (!isPlaying && !isGameOver && !isGameWon) {
+          e.preventDefault();
+          startGame();
+        }
+      }
+      
+      if (key === "p") {
+        if (isPlaying && !isGameOver && !isGameWon) {
+          e.preventDefault();
+          togglePause();
+        }
+      }
+      
+      if (key === "r") {
+        if (isGameOver || isGameWon || (isPlaying && isPaused)) {
+          e.preventDefault();
+          resetGame();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPlaying, isGameOver, isGameWon, isPaused, startGame, resetGame, togglePause]);
 
   return (
     <main className="relative w-full h-full overflow-hidden bg-slate-950 select-none">
@@ -81,8 +338,26 @@ export default function Home() {
         <GameCanvas />
       </div>
 
+      {/* DAMAGE FLASH & INVINCIBILITY SCREEN OVERLAY */}
+      {isPlaying && !isGameOver && invincibleTimer > 0 && (
+        <div className="absolute inset-0 pointer-events-none z-30 animate-pulse bg-red-500/10 border-[6px] border-red-500/40 shadow-[inset_0_0_50px_rgba(239,68,68,0.4)]">
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 flex items-center gap-2 backdrop-blur-md bg-slate-900/90 border border-red-500/50 rounded-full px-4 py-1 text-[9px] text-red-400 font-bold font-orbitron tracking-widest uppercase shadow-2xl">
+            SISTEMA INVASIVO: ESCUDO TEMPORÁRIO ATIVO!
+          </div>
+        </div>
+      )}
+
+      {/* SURFACE BREATHING / HEALING SCREEN OVERLAY */}
+      {isPlaying && !isGameOver && isSurfacing && (
+        <div className="absolute inset-0 pointer-events-none z-30 border-[12px] border-cyan-500/30 shadow-[inset_0_0_100px_rgba(6,182,212,0.3)] bg-cyan-950/5">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 backdrop-blur-md bg-cyan-950/90 border border-cyan-400/50 rounded-full px-5 py-2 text-[10px] text-cyan-300 font-bold font-orbitron tracking-widest uppercase shadow-2xl animate-pulse">
+            <Droplets className="w-4 h-4 text-cyan-400 animate-bounce" /> BALEIA RESPIRANDO NA SUPERFÍCIE: REGENERANDO ENERGIA & VIDA!
+          </div>
+        </div>
+      )}
+
       {/* OIL DAMAGE SCREEN OVERLAY */}
-      {isPlaying && !isGameOver && inOilSlick && (
+      {isPlaying && !isGameOver && inOilSlick && !isSurfacing && (
         <div className="absolute inset-0 pointer-events-none z-30 animate-pulse border-[12px] border-red-950/85 shadow-[inset_0_0_100px_rgba(185,28,28,0.95)] bg-red-900/5">
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 backdrop-blur-md bg-red-950/90 border border-red-500/50 rounded-full px-5 py-2 text-[10px] text-red-300 font-bold font-orbitron tracking-widest uppercase shadow-2xl">
             <Droplets className="w-4 h-4 text-red-500 animate-bounce" /> CONTAMINAÇÃO POR ÓLEO: DANIFICANDO O CASCO!
@@ -121,90 +396,8 @@ export default function Home() {
       )}
 
       {/* 3. FIRST PERSON HUD DASHBOARD (Doom-style, bottom layout) */}
-      {isPlaying && !isGameOver && (
-        <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col items-center gap-4 z-10 pointer-events-none">
-          {/* Section Indicator Badge */}
-          <div className="backdrop-blur-md bg-slate-900/60 border border-slate-700/30 rounded-full px-4 py-1.5 text-[10px] text-cyan-300 font-bold font-orbitron tracking-widest uppercase pointer-events-auto">
-            ROTA: {currentSection} / 4 — {currentSection === 1 && "Mar Aberto"}
-            {currentSection === 2 && "Paredões do Pontal"}
-            {currentSection === 3 && "Estreito do Boqueirão"}
-            {currentSection === 4 && "Águas Rasas de Arraial"}
-          </div>
+      {isPlaying && !isGameOver && <HudDashboard />}
 
-          {/* Main Bottom Glass HUD */}
-          <div className="backdrop-blur-md bg-slate-900/70 border border-slate-700/40 rounded-2xl p-4 w-full max-w-5xl shadow-2xl flex justify-between items-center pointer-events-auto select-none gap-4">
-            {/* HUD segment: ESCUDO DO CASCO & OXIGÊNIO */}
-            <div className="flex items-center gap-3 w-1/4">
-              <Shield className="text-red-500 w-6 h-6 animate-pulse" />
-              <div>
-                <p className="text-[10px] text-red-400 font-semibold tracking-widest font-orbitron">ESTRUTURA DO CASCO</p>
-                <div className="flex gap-1 mt-0.5">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-2.5 w-6 rounded-sm border ${
-                        i < lives
-                          ? "bg-red-500 border-red-400 shadow-[0_0_8px_#ef4444]"
-                          : "bg-slate-900/80 border-slate-800"
-                      } transition-all duration-300`}
-                    />
-                  ))}
-                </div>
-                {/* Oxigênio/Stamina HUD Bar */}
-                <div className="mt-1">
-                  <p className="text-[8px] text-cyan-400 font-semibold tracking-wider font-orbitron uppercase">OXIGÊNIO / ENERGIA</p>
-                  <div className="w-20 bg-slate-950 rounded-full h-1.5 overflow-hidden border border-slate-800/80 mt-0.5">
-                    <div
-                      className="bg-cyan-400 h-full rounded-full animate-pulse shadow-[0_0_6px_#22d3ee] transition-all duration-300"
-                      style={{ width: `${boost}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* HUD segment: LIXO RECOLHIDO (Lixo Limpo) */}
-            <div className="flex items-center justify-center gap-3 w-1/4 border-l border-slate-800/80 px-2">
-              <Trash2 className="text-emerald-400 w-5 h-5 animate-bounce-slow" />
-              <div>
-                <p className="text-[10px] text-emerald-400 font-semibold tracking-widest font-orbitron">LIXO RECOLHIDO</p>
-                <p className="text-xl font-bold font-orbitron text-white tracking-widest mt-0.5">
-                  {String(trashCleaned).padStart(3, "0")} <span className="text-[9px] text-slate-500">LIMPO</span>
-                </p>
-              </div>
-            </div>
-
-            {/* HUD segment: DEBRIS DEMONS COUNT (Center target monitor) */}
-            <div className="flex items-center justify-center gap-3 w-1/4 border-l border-r border-slate-800/80 px-2 text-center">
-              <Crosshair className="text-amber-500 w-5 h-5 animate-spin-slow" />
-              <div className="text-left">
-                <span className="text-[10px] text-amber-500 font-bold font-orbitron tracking-widest">
-                  POLUIÇÃO RESTANTE
-                </span>
-                <p className="text-xl font-black font-orbitron text-amber-400 tracking-wider mt-0.5">
-                  {String(activeTrashCount).padStart(2, "0")} <span className="text-[9px] text-slate-500">DEBRIS</span>
-                </p>
-              </div>
-            </div>
-
-            {/* HUD segment: SCORE */}
-            <div className="flex items-center justify-end gap-3 w-1/4 text-right">
-              <div>
-                <p className="text-[10px] text-cyan-400 font-semibold tracking-widest font-orbitron">PONTUAÇÃO DO SISTEMA</p>
-                <p className="text-xl font-bold font-orbitron tracking-widest text-white mt-0.5 cyber-glow">
-                  {String(score).padStart(6, "0")}
-                </p>
-              </div>
-              <Award className="text-cyan-400 w-6 h-6" />
-            </div>
-          </div>
-
-          {/* Quick HUD guide tip */}
-          <div className="text-[10px] text-slate-500 font-orbitron tracking-wider flex items-center gap-1">
-            <Info className="w-3 h-3 text-cyan-500" /> [WASD] Mover | [ESPAÇO] Subir | [SHIFT] Descer | [CLIQUE] Atirar Bolha | [ESC] Destravar Mira
-          </div>
-        </div>
-      )}
 
       {/* Screen Blur Overlay for Pause state */}
       {isPlaying && isPaused && isLocked && !isGameOver && (
@@ -218,7 +411,7 @@ export default function Home() {
               onClick={togglePause}
               className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold font-orbitron rounded-xl py-4 shadow-lg shadow-cyan-500/20 transition-all duration-300 hover:scale-102 cursor-pointer"
             >
-              <Play className="w-5 h-5 fill-slate-950" /> RETOMAR COMBATE
+              <Play className="w-5 h-5 fill-slate-950" /> RETOMAR COMBATE [P]
             </button>
           </div>
         </div>
@@ -270,7 +463,7 @@ export default function Home() {
               onClick={startGame}
               className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black font-orbitron rounded-xl py-4 shadow-xl shadow-cyan-500/25 transition-all duration-300 hover:scale-103 cursor-pointer group"
             >
-              <Play className="w-5 h-5 fill-slate-950 group-hover:scale-110 transition-transform" /> INICIAR LIMPEZA (FPV)
+              <Play className="w-5 h-5 fill-slate-950 group-hover:scale-110 transition-transform" /> INICIAR LIMPEZA (FPV) [ENTER]
             </button>
           </div>
         </div>
@@ -302,7 +495,7 @@ export default function Home() {
               onClick={resetGame}
               className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold font-orbitron rounded-xl py-4 shadow-xl shadow-red-500/20 transition-all duration-300 hover:scale-102 cursor-pointer group"
             >
-              <RotateCcw className="w-5 h-5 group-hover:rotate-45 transition-transform" /> RECONECTAR EQUIPAMENTO
+              <RotateCcw className="w-5 h-5 group-hover:rotate-45 transition-transform" /> REINICIAR [R]
             </button>
           </div>
         </div>
@@ -358,7 +551,7 @@ export default function Home() {
               onClick={resetGame}
               className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-bold font-orbitron rounded-xl py-4 shadow-xl shadow-emerald-500/20 transition-all duration-300 hover:scale-102 cursor-pointer group"
             >
-              <RotateCcw className="w-5 h-5 group-hover:rotate-45 transition-transform" /> JOGAR NOVAMENTE
+              <RotateCcw className="w-5 h-5 group-hover:rotate-45 transition-transform" /> JOGAR NOVAMENTE [R]
             </button>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { PointerLockControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useKeyboard } from "@/hooks/useKeyboard";
-import { useGameStore } from "@/store/useGameStore";
+import { useGameStore, getRouteX } from "@/store/useGameStore";
 
 // Export camera position ref for collision detection by static debris (demons)
 export const playerPositionRef = { current: new THREE.Vector3(0, 0, 0) };
@@ -77,7 +77,7 @@ export function FPSControls() {
     if (!isPlaying || isPaused) return;
 
     // Apply delta updates in store
-    updateWorld(delta);
+    updateWorld(delta, camera.position);
 
     // 1. Calculate direction vectors from camera matrix
     camera.getWorldDirection(forwardVec.current);
@@ -105,60 +105,84 @@ export function FPSControls() {
       nextPos.add(moveVec.current);
     }
 
+    // Dynamic Ocean Currents (force field) inside Section 3 (Boqueirão canyon, z: -1000 to -1600)
+    // Lateral current push (oscillating left/right flow) that players must actively steer against
+    if (nextPos.z <= -1000 && nextPos.z >= -1600) {
+      const time = state.clock.getElapsedTime();
+      const currentForce = Math.sin(time * 0.8 + nextPos.z * 0.01) * 6.5; // lateral float push force
+      nextPos.x += currentForce * delta;
+    }
+
     // A. Dynamic Seabed (Chão) and Ceiling (Teto) Collision Constraints
-    // Floor baseline Y = -45 + (-z * 0.22). Player radius = 2.5.
+    // Floor Y = -45 + (-z * 0.22).
     const floorY = -45 + (-nextPos.z * 0.22);
     const minPlayerY = floorY + 2.5; 
-    const maxPlayerY = floorY + 68.0; // Invisible ocean teto (ceiling height 68 units above seabed)
+    const maxPlayerY = floorY + 68.0;
 
     nextPos.y = THREE.MathUtils.clamp(nextPos.y, minPlayerY, maxPlayerY);
 
-    // B. Left/Right Wall Boundaries (Clamps X according to Z section)
-    // Section 3 (canyon) is narrow: Z in [-1600, -1000] -> clamp X to [-22, 22]
-    if (nextPos.z <= -1000 && nextPos.z >= -1600) {
-      nextPos.x = THREE.MathUtils.clamp(nextPos.x, -21.5, 21.5);
-    } else {
-      nextPos.x = THREE.MathUtils.clamp(nextPos.x, -72.0, 72.0);
+    // B. Curved Path Left/Right Boundaries
+    // Center X is getRouteX(z). We allow a dynamic play area width depending on the section:
+    // Section 3 (canyon) is narrow (width = 24), other sections are wider (width = 75).
+    const pathCenterX = getRouteX(nextPos.z);
+    let allowedWidth = 75;
+    if (nextPos.z <= -450 && nextPos.z >= -1000) {
+      allowedWidth = 40; // Section 2 canyon walls at ±42 from path center
     }
-    
-    // Z limits
-    nextPos.z = THREE.MathUtils.clamp(nextPos.z, boundary.z.min, boundary.z.max);
+    if (nextPos.z <= -1000 && nextPos.z >= -1600) {
+      allowedWidth = 24; // narrow canyon width
+    }
+    nextPos.x = THREE.MathUtils.clamp(nextPos.x, pathCenterX - allowedWidth, pathCenterX + allowedWidth);
 
-    // C. Static Obstacle Collision Resolution (Pillars, Corals, Portal, Shipwreck)
+    // C. Static Obstacle Collision Resolution (Pillars, Corals, Portal, Shipwreck, Orcas)
+    // Synchronize layout position with getRouteX and floorY
     const OBSTACLES = [
-      // Section 2 Pillars (Cylinders)
-      { type: "cylinder", x: -60, z: -550, radius: 10 },
-      { type: "cylinder", x: -50, z: -800, radius: 12 },
-      { type: "cylinder", x: 60, z: -700, radius: 11 },
-      { type: "cylinder", x: 55, z: -950, radius: 13 },
-      // Section 4 Corals (Spheres)
-      { type: "sphere", x: -35, y: 304, z: -1700, radius: 5 },
-      { type: "sphere", x: 35, y: 326, z: -1800, radius: 6 },
-      { type: "sphere", x: -15, y: 348, z: -1900, radius: 4 },
-      // Portal Pillars (Cylinders)
-      { type: "cylinder", x: -25, z: -1980, radius: 2.5 },
-      { type: "cylinder", x: 25, z: -1980, radius: 2.5 },
-      // Vapor Harlingen Cargueiro Colliders (Z=-1780, Arraial shallow section)
-      { type: "cylinder", x: -15, z: -1765, radius: 5 }, // Left boiler
-      { type: "cylinder", x: 15, z: -1795, radius: 5 },  // Right boiler
-      { type: "box", xMin: -10, xMax: 10, yMin: 285, yMax: 315, zMin: -1795, zMax: -1770 } // Hull rib clump
+      // Section 2 Canyon Left Wall (spans Z -450 to -1000, dynamic curving inner face at pathCenter-40)
+      { type: "box",
+        xMin: getRouteX(nextPos.z) - 56,
+        xMax: getRouteX(nextPos.z) - 40,
+        yMin: -100, yMax: 500,
+        zMin: -1005, zMax: -445
+      },
+      // Section 2 Canyon Right Wall (spans Z -450 to -1000, dynamic curving inner face at pathCenter+40)
+      { type: "box",
+        xMin: getRouteX(nextPos.z) + 40,
+        xMax: getRouteX(nextPos.z) + 56,
+        yMin: -100, yMax: 500,
+        zMin: -1005, zMax: -445
+      },
+      // Section 4 Corals (at visual floor — decorative, below player swim range)
+      { type: "sphere", x: getRouteX(-1700) - 35, y: 289, z: -1700, radius: 5 },
+      { type: "sphere", x: getRouteX(-1800) + 35, y: 311, z: -1800, radius: 6 },
+      { type: "sphere", x: getRouteX(-1900) - 15, y: 333, z: -1900, radius: 4 },
+      // Portal Pillars (pillar center at visualFloor+30 = 380.6, pillars from 350.6 to 410.6)
+      { type: "cylinder", x: getRouteX(-1980) - 25, z: -1980, radius: 8, yMin: 350.6, yMax: 410.6 },
+      { type: "cylinder", x: getRouteX(-1980) + 25, z: -1980, radius: 8, yMin: 350.6, yMax: 410.6 },
+      // Vapor Harlingen Cargueiro Colliders (Z=-1780)
+      { type: "cylinder", x: getRouteX(-1780) - 15, z: -1765, radius: 5, yMin: 285, yMax: 325 },
+      { type: "cylinder", x: getRouteX(-1780) + 15, z: -1795, radius: 5, yMin: 285, yMax: 325 },
+      { type: "box", xMin: getRouteX(-1780) - 10, xMax: getRouteX(-1780) + 10, yMin: 285, yMax: 315, zMin: -1795, zMax: -1770 }
     ];
 
     const playerRadius = 2.5;
 
     for (const obs of OBSTACLES) {
       if (obs.type === "cylinder") {
-        const cyl = obs as { x: number; z: number; radius: number };
-        const dx = nextPos.x - cyl.x;
-        const dz = nextPos.z - cyl.z;
-        const distXZ = Math.sqrt(dx * dx + dz * dz);
-        const minDist = cyl.radius + playerRadius;
-        
-        if (distXZ < minDist) {
-          // Slide along cylinder surface: push position outwards
-          const overlap = minDist - distXZ;
-          nextPos.x += (dx / distXZ) * overlap;
-          nextPos.z += (dz / distXZ) * overlap;
+        const cyl = obs as { x: number; z: number; radius: number; yMin?: number; yMax?: number };
+        const yOverlap = (cyl.yMin === undefined || nextPos.y + playerRadius > cyl.yMin) && 
+                        (cyl.yMax === undefined || nextPos.y - playerRadius < cyl.yMax);
+        if (yOverlap) {
+          const dx = nextPos.x - cyl.x;
+          const dz = nextPos.z - cyl.z;
+          const distXZ = Math.sqrt(dx * dx + dz * dz);
+          const minDist = cyl.radius + playerRadius;
+          
+          if (distXZ < minDist) {
+            // Slide along cylinder surface: push position outwards
+            const overlap = minDist - distXZ;
+            nextPos.x += (dx / distXZ) * overlap;
+            nextPos.z += (dz / distXZ) * overlap;
+          }
         }
       } else if (obs.type === "sphere") {
         const sph = obs as { x: number; y?: number; z: number; radius: number };
@@ -211,6 +235,20 @@ export function FPSControls() {
     // D. Apply resolved position to camera
     camera.position.copy(nextPos);
 
+    // Dynamic FOV Camera effect for Section 3 (Boqueirão canyon claustrophobia)
+    // base FOV is 60. We reduce FOV towards 45 to enhance speed feel & zoom-in look in Boqueirão (z: -1000 to -1600)
+    let targetFov = 60;
+    if (camera.position.z <= -1000 && camera.position.z >= -1600) {
+      const canyonPct = (camera.position.z - -1000) / (-1600 - -1000); // 0 to 1
+      const sinFactor = Math.sin(canyonPct * Math.PI); // peak in the middle
+      targetFov = 60 - (sinFactor * 16);
+    }
+    const persCam = camera as THREE.PerspectiveCamera;
+    if (persCam.isPerspectiveCamera) {
+      persCam.fov = THREE.MathUtils.lerp(persCam.fov, targetFov, 0.05);
+      persCam.updateProjectionMatrix();
+    }
+
     // Update section in store based on player position
     updateSection(camera.position.z);
 
@@ -224,6 +262,10 @@ export function FPSControls() {
       // Check XZ radius proximity and vertical proximity within a thin column (Y height +/- 5 units)
       if (distXZ < slick.radius && Math.abs(dy) < 5.0) {
         inSlick = true;
+        // Trigger light smartphone vibration when in dangerous oil slicks
+        if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate && Math.random() < 0.1) {
+          window.navigator.vibrate([40]);
+        }
         break;
       }
     }

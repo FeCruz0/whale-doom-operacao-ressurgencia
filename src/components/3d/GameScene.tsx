@@ -7,31 +7,35 @@ import { Projectiles } from "./Projectiles";
 import { FPSControls } from "./FPSControls";
 import { RouteScenario } from "./RouteScenario";
 import { OilSlicks } from "./OilSlicks";
+import { OrcaEnemy } from "./OrcaEnemy";
+import { GuidingSchool } from "./GuidingSchool";
+import { AssetWarmUp } from "./AssetWarmUp";
 
 export function GameScene() {
   return (
     <>
+      {/* Shader Warm-Up: pre-compiles all custom GLSL shaders on the GPU
+           during the Menu screen to prevent first-frame stutter on game start. */}
+      <AssetWarmUp />
+
       {/* Dark deep-sea ocean backdrop */}
       <color attach="background" args={["#020617"]} />
 
       {/* Underwater depth fog */}
       <fog attach="fog" args={["#020617", 10, 160]} />
 
-      {/* Atmospheric deep sea lighting */}
-      <ambientLight intensity={0.4} color="#0891b2" /> {/* cyan water light */}
+      {/* Atmospheric deep sea lighting — low ambient, cool-blue tinted */}
+      <ambientLight intensity={0.28} color="#88aabb" /> {/* muted ocean ambient */}
       
       {/* Dynamic sunlight rays piercing from water surface */}
       <directionalLight
         position={[20, 100, -10]}
-        intensity={1.5}
-        color="#a5f3fc"
+        intensity={1.2}
+        color="#c8e8f0"
         castShadow
         shadow-mapSize={[1028, 1028]}
       />
-      
-      {/* Bioluminescent deep water point lights */}
-      <pointLight position={[0, -20, -50]} intensity={4} color="#3b82f6" />
-      <pointLight position={[-40, 20, -100]} intensity={3} color="#a855f7" />
+
 
       {/* Starfield treated as bioluminescent deep-sea plankton */}
       <Stars
@@ -54,6 +58,10 @@ export function GameScene() {
       <Projectiles />
       <FloatingObjects />
       <OilSlicks />
+      
+      {/* Orca Predators and Guiding School */}
+      <OrcaEnemy />
+      <GuidingSchool />
       
       {/* 3D Static Environments for 4 sections */}
       <RouteScenario />
